@@ -36,7 +36,7 @@
     let condicion = {
         createdAt: {
             $gte: new Date("2017-09-26T00:00:00.000Z")
-        },
+        }
     };
 
     mongoClient.connect(urlMpi, function (err, db) {
@@ -82,7 +82,7 @@
                                                                 pacientes: pacienteVinculado.pacientes,
                                                                 envioCodigoCount: 1,
                                                                 codigoVerificacion: codigo,
-                                                                telefono: celular,
+                                                                //telefono: celular,
                                                                 email: null,
                                                                 activacionApp: false,
                                                                 estadoCodigo: false,
@@ -95,7 +95,7 @@
                                                                 console.log('Error: ', err);
                                                             } else {
                                                                 let paciente = pacienteVinculado;
-                                                                paciente.telefono = celular;
+                                                                //paciente.telefono = celular;
                                                                 paciente.email = null;
                                                                 paciente.codigoVerificacion = codigo;
                                                                 enviarCodigoVerificacion(paciente);
@@ -144,7 +144,7 @@
 
                                                 } else {
                                                     // console.log('Paciene por aca: ',dataPacienteApp);
-                                                    enviarCodigoVerificacion(user);
+                                                    enviarCodigoVerificacion(dataPacienteApp);
                                                 }
                                                 resolve();
                                             });
@@ -235,26 +235,30 @@
     };
 
     function enviarCodigoVerificacion(user) {
-        console.log('El usuario de mail: ', user);
+        let mensajeGenerico = 'Ministerio de Salud :: ANDES :: Actualice la APP desde https://goo.gl/KMPzne y regístrese con este código de activación : ' + user.codigoVerificacion; 
         let mailOptions: any = {
             from: configPrivate.enviarMail.host,
             to: user.email,
             subject: 'Ministerio de Salud :: ANDES :: Código de activación',
-            text: 'Estimado ' + user.email + ', Su código de activación para ANDES Mobile es: ' + user.codigoVerificacion,
-            html: 'Estimado ' + user.email + ', Su código de activación para ANDES Mobile es: ' + user.codigoVerificacion,
+            text: mensajeGenerico,
+            html: mensajeGenerico
         };
 
         let smsOptions: any = {
             telefono: user.telefono,
-            mensaje: 'Ministerio de Salud :: ANDES :: Te envía tú código de activación APP Mobile: ' + user.codigoVerificacion + '. descarga la APP de https://goo.gl/KMPzne'
+            mensaje: mensajeGenerico
         };
         if (user.email) {
             sendMail(mailOptions);
         }
         
         sendSms(smsOptions, function (res) {
+            
             if (res === '0') {
-                logger.log('info', 'El SMS se envío correctamente');
+                logger.log('info', 'El SMS se envío correctamente', user.documento);
+            } else {
+                logger.log('info', 'El SMS ha fallado', user.documento)
+                logger.log('info', '' )
             }
         });
     }

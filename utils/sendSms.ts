@@ -1,4 +1,6 @@
-import { SMSendpoints } from './../config.private';
+import {
+    SMSendpoints
+} from './../config.private';
 import * as debug from 'debug';
 
 let log = debug('sendSMS');
@@ -31,22 +33,33 @@ export function sendSms(smsOptions: SmsOptions, callback) {
             log(errCreate);
             log('No ha sido posible enviar el sms');
         } else {
+
             if (clientOperador) {
                 clientOperador.recuperarOperador(argsOperador, function (errOperador, result, raw) {
                     // Server down?
                     if (clientOperador.lastResponse) {
-                        let xmlFault = libxmljs.parseXml(clientOperador.lastResponse);
-                        let xmlFaultString = xmlFault.get('//faultstring');
-                        if (xmlFaultString) {
-                            return log(xmlFaultString.text());
+                        try {
+                            let xmlFault = libxmljs.parseXml(clientOperador.lastResponse);
+                            let xmlFaultString = xmlFault.get('//faultstring');
+                            if (xmlFaultString) {
+                                return log(xmlFaultString.text());
+                            }
+                        } catch (e) {
+                            console.log('ERROR DE PARSEO 1: ', e, smsOptions.telefono);
+                            return callback(e);
                         }
                     }
                     if (result && result.return) {
-
-                        let xml = result.return;
-                        let xmlDoc = libxmljs.parseXml(xml);
-                        let xmlDato = xmlDoc.get('//dato');
-                        let carrier = operador(xmlDato.text());
+                        let carrier;
+                        try {
+                            let xml = result.return;
+                            let xmlDoc = libxmljs.parseXml(xml);
+                            let xmlDato = xmlDoc.get('//dato');
+                            carrier = operador(xmlDato.text());
+                        } catch (ee) {
+                            console.log('ERROR DE PARSEO 2: ', ee, smsOptions.telefono);
+                            return callback(ee);
+                        }
 
                         if (carrier) {
                             argsNumero = {
@@ -59,12 +72,16 @@ export function sendSms(smsOptions: SmsOptions, callback) {
 
                             soap.createClient(SMSendpoints.urlNumero, opciones, function (err, clientEnvio) {
                                 clientEnvio.envioSMSOperador(argsNumero, function (errEnvio, resultEnvio, _raw) {
-
-                                    let xmlEnvio = resultEnvio.return;
-                                    let xmlEnvioDoc = libxmljs.parseXml(xmlEnvio);
-                                    let xmlEnvioDato = xmlEnvioDoc.get('//status');
-                                    let status = xmlEnvioDato.text();
-
+                                    let status;
+                                    try {
+                                        let xmlEnvio = resultEnvio.return;
+                                        let xmlEnvioDoc = libxmljs.parseXml(xmlEnvio);
+                                        let xmlEnvioDato = xmlEnvioDoc.get('//status');
+                                        status = xmlEnvioDato.text();
+                                    } catch (eee) {
+                                        console.log('ERROR DE PARSEO 3: ', eee, smsOptions.telefono);
+                                        return callback(eee);
+                                    }
                                     if (errEnvio) {
                                         return log(errEnvio);
                                     } else {
