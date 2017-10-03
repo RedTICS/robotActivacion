@@ -82,6 +82,8 @@
                                                                 pacientes: pacienteVinculado.pacientes,
                                                                 envioCodigoCount: 1,
                                                                 codigoVerificacion: codigo,
+                                                                telefono: celular,
+                                                                email: null,
                                                                 activacionApp: false,
                                                                 estadoCodigo: false,
                                                                 expirationTime: new Date(Date.now() + expirationOffset),
@@ -93,8 +95,9 @@
                                                                 console.log('Error: ', err);
                                                             } else {
                                                                 let paciente = pacienteVinculado;
+                                                                paciente.telefono = celular;
+                                                                paciente.email = null;
                                                                 paciente.codigoVerificacion = codigo;
-                                                                // console.log('Paciene por aca: ',paciente);
                                                                 enviarCodigoVerificacion(paciente);
                                                             }
                                                             resolve();
@@ -245,8 +248,10 @@
             telefono: user.telefono,
             mensaje: 'Ministerio de Salud :: ANDES :: Te envía tú código de activación APP Mobile: ' + user.codigoVerificacion + '. descarga la APP de https://goo.gl/KMPzne'
         };
-
-        sendMail(mailOptions);
+        if (user.email) {
+            sendMail(mailOptions);
+        }
+        
         sendSms(smsOptions, function (res) {
             if (res === '0') {
                 logger.log('info', 'El SMS se envío correctamente');
