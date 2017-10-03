@@ -13,7 +13,6 @@ export interface SmsOptions {
 
 export function sendSms(smsOptions: SmsOptions, callback) {
     log('Enviando SMS...');
-
     let argsOperador = {
         telefono: smsOptions.telefono
     };
@@ -38,9 +37,8 @@ export function sendSms(smsOptions: SmsOptions, callback) {
                     if (clientOperador.lastResponse) {
                         let xmlFault = libxmljs.parseXml(clientOperador.lastResponse);
                         let xmlFaultString = xmlFault.get('//faultstring');
-                        // Escupir el error que viene en la respuesta XML del servidor
                         if (xmlFaultString) {
-                            return log(xmlFaultString.text()); // ptú ptú
+                            return log(xmlFaultString.text());
                         }
                     }
                     if (result && result.return) {

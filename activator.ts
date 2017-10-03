@@ -21,6 +21,7 @@
     let contador = 0;
     let urlAndes = configPrivate.urlMongoAndes;
     let urlMpi = configPrivate.urlMongoMpi;
+    let arrayPromesas = [];
     let coleccionPacientesApp = 'pacienteApp';
     let coleccionPacientes = 'paciente';
     let logger = new(winston.Logger)({
@@ -35,7 +36,7 @@
     let condicion = {
         createdAt: {
             $gte: new Date("2017-09-26T00:00:00.000Z")
-        }
+        },
     };
 
     mongoClient.connect(urlMpi, function (err, db) {
@@ -46,100 +47,122 @@
                     console.log('Error al conectarse a la base de datos ', error);
                 }
                 if (pacientes.length > 0) {
-                    
-                    pacientes.forEach(async pac => {
 
-                        let celular = searchContacto(pac, 'celular');
-                        if (celular) {
-                            let pacienteVinculado = await buscaPacienteVinculado(pac, db2);
-                            
-                            if (pacienteVinculado) {
+                    pacientes.forEach(pac => {
+                        let p = new Promise(async(resolve, reject) => {
 
-                                let matcheo = await matchPacientes(pac, pacienteVinculado);
-                                if (matcheo >= 0.95) {
+                            let celular = searchContacto(pac, 'celular');
+                            if (celular) {
+                                let pacienteVinculado = await buscaPacienteVinculado(pac, db2);
 
-                                    if (pacienteVinculado.pacientes.length <= 0) {
+                                if (pacienteVinculado) {
 
-                                        logger.log('info', 'Envío sms a : ', pac.documento, pac.nombre, pac.apellido);
+                                    let matcheo = await matchPacientes(pac, pacienteVinculado);
+                                    if (matcheo >= 0.95) {
 
-                                        // let objAdd = {
-                                        //     id: pac._id,
-                                        //     relacion: 'principal',
-                                        //     addedAt: new Date()
+                                        if (pacienteVinculado.pacientes.length <= 0) {
 
-                                        // }
-                                        // pacienteVinculado.pacientes.push(objAdd);
-                                        // db2.collection(coleccionPacientesApp).updateOne({
-                                        //     _id: pacienteVinculado._id
-                                        // }, {
-                                        //     $set: {
-                                        //         pacientes: pacienteVinculado.pacientes
-                                        //     }
-                                        // }, function (err, rta) {
-                                        //     if (err) {
-                                        //         console.log('Error: ', err);
-                                        //     } else {
-                                        //         logger.log('info', 'Paciente vinculado: ', pacienteVinculado);
-                                        //         enviarCodigoVerificacion(pacienteVinculado);
-                                        //     }
+                                            logger.log('info', 'Envío sms a : ', pac.documento, pac.nombre, pac.apellido);
 
-                                        // })
+                                            let objAdd = {
+                                                id: pac._id,
+                                                relacion: 'principal',
+                                                addedAt: new Date()
+
+                                            }
+                                            pacienteVinculado.pacientes.push(objAdd);
+                                            codeVerification.createUniqueCode(db2, coleccionPacientesApp)
+                                                .then(codigo => {
+
+                                                    db2.collection(coleccionPacientesApp).updateOne({
+                                                            _id: pacienteVinculado._id
+                                                        }, {
+
+                                                            $set: {
+                                                                pacientes: pacienteVinculado.pacientes,
+                                                                envioCodigoCount: 1,
+                                                                codigoVerificacion: codigo,
+                                                                activacionApp: false,
+                                                                estadoCodigo: false,
+                                                                expirationTime: new Date(Date.now() + expirationOffset),
+                                                            }
+
+                                                        },
+                                                        function (err, rta) {
+                                                            if (err) {
+                                                                console.log('Error: ', err);
+                                                            } else {
+                                                                let paciente = pacienteVinculado;
+                                                                paciente.codigoVerificacion = codigo;
+                                                                // console.log('Paciene por aca: ',paciente);
+                                                                enviarCodigoVerificacion(paciente);
+                                                            }
+                                                            resolve();
+                                                        })
+                                                })
 
 
+                                        } else {
+                                            resolve();
+                                        }
+                                    } else {
+                                        resolve();
                                     }
+                                } else {
+                                    contador++;
+
+                                    codeVerification.createUniqueCode(db2, coleccionPacientesApp)
+                                        .then(codigo => {
+                                            // Creamos el pacienteApp y lo insertamos con un codigo de verificación
+                                            let dataPacienteApp: any = {
+                                                nombre: pac.nombre,
+                                                apellido: pac.apellido,
+                                                email: null,
+                                                password: null,
+                                                telefono: celular,
+                                                envioCodigoCount: 1,
+                                                nacionalidad: 'Argentina',
+                                                documento: pac.documento,
+                                                fechaNacimiento: pac.fechaNacimiento,
+                                                sexo: pac.sexo,
+                                                genero: pac.genero,
+                                                codigoVerificacion: codigo,
+                                                expirationTime: new Date(Date.now() + expirationOffset),
+                                                permisos: [],
+                                                pacientes: [{
+                                                    id: pac._id,
+                                                    relacion: 'principal',
+                                                    addedAt: new Date()
+                                                }]
+                                            };
+                                            db2.collection(coleccionPacientesApp).insertOne(dataPacienteApp, function (err, user) {
+                                                if (err) {
+                                                    console.log('error', err);
+
+                                                } else {
+                                                    // console.log('Paciene por aca: ',dataPacienteApp);
+                                                    enviarCodigoVerificacion(user);
+                                                }
+                                                resolve();
+                                            });
+                                        });
                                 }
                             } else {
-                                contador++;
 
-                                // codeVerification.createUniqueCode(db2, coleccionPacientesApp)
-                                //     .then(codigo => {
-                                //         // Creamos el pacienteApp y lo insertamos con un codigo de verificación
-                                //         let dataPacienteApp: any = {
-                                //             nombre: pac.nombre,
-                                //             apellido: pac.apellido,
-                                //             email: null,
-                                //             password: null,
-                                //             telefono: celular,
-                                //             envioCodigoCount: 0,
-                                //             nacionalidad: 'Argentina',
-                                //             documento: pac.documento,
-                                //             fechaNacimiento: pac.fechaNacimiento,
-                                //             sexo: pac.sexo,
-                                //             genero: pac.genero,
-                                //             codigoVerificacion: codigo,
-                                //             expirationTime: new Date(Date.now() + expirationOffset),
-                                //             permisos: [],
-                                //             pacientes: [{
-                                //                 id: pac._id,
-                                //                 relacion: 'principal',
-                                //                 addedAt: new Date()
-                                //             }]
-                                //         };
-                                //         db2.collection(coleccionPacientesApp).insertOne({dataPacienteApp}, function(err , user){
-                                //             if (err) {
-                                //                 console.log('error', err);
-                                //             } else {
-                                //                 enviarCodigoVerificacion(user);
-                                //             }
-
-                                //         });
-                                //     });
+                                resolve();
                             }
 
+                        })
+                        arrayPromesas.push(p);
 
-                        } else {
-
-                            logger.log('info', 'PACIENTE SIN CELULAR!!: ', pac.nombre, pac.apellido, pac.documento);
-
-                        }
-                        counter++
-                        if (counter === pacientes.length) {
-                            db.close();
-                            console.log('Cantidad de pacientes que matchearon: ', cantidadMatch);
-                            console.log('Para que Silvi sea feliz: ', contador);
-                            console.log('Proceso terminado');
-                        }
                     });
+
+                    Promise.all(arrayPromesas).then(resultado => {
+                        db.close();
+                        db2.close();
+                    })
+
+
 
                 } else {
                     console.log('No existen pacientes con esa condición');
@@ -168,7 +191,6 @@
                 if (err) {
                     console.log('entro por este error:', err);
                     reject(err);
-
                 } else {
                     if (item) {
                         resolve(item);
@@ -210,7 +232,7 @@
     };
 
     function enviarCodigoVerificacion(user) {
-
+        console.log('El usuario de mail: ', user);
         let mailOptions: any = {
             from: configPrivate.enviarMail.host,
             to: user.email,
@@ -221,7 +243,7 @@
 
         let smsOptions: any = {
             telefono: user.telefono,
-            mensaje: user.codigoVerificacion
+            mensaje: 'Ministerio de Salud :: ANDES :: Te envía tú código de activación APP Mobile: ' + user.codigoVerificacion + '. descarga la APP de https://goo.gl/KMPzne'
         };
 
         sendMail(mailOptions);
