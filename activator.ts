@@ -10,6 +10,7 @@
     import {
         Matching
     } from '@andes/match';
+    import * as moment from 'moment';
 
 
     // Imports 3rd Parties
@@ -33,8 +34,9 @@
             })
         ]
     });
-
-    let now = new Date(Date.now() - 1000 * 60 * 60 * 24 * 75)
+    
+    let now = moment().subtract(1,'days').toDate();
+    
     let condicion = {
         createdAt: {
             $gte: now
@@ -44,15 +46,18 @@
     mongoClient.connect(urlMpi, function (err, db) {
         mongoClient.connect(urlAndes, function (err, db2) {
 
-            db.collection(coleccionPacientes).find(condicion).limit(100).toArray(function (error, pacientes: any) {
+            db.collection(coleccionPacientes).find(condicion).toArray(function (error, pacientes: any) {
                 if (error) {
                     console.log('Error al conectarse a la base de datos ', error);
                 }
                 if (pacientes.length > 0) {
-                    console.log(pacientes);
                     pacientes.forEach(pac => {
                         let p = new Promise(async(resolve, reject) => {
-
+                            let crtlFecha = moment(pac.fechaNacimiento);
+                            // No enviamos a menores de 18 años
+                            if (moment().diff(crtlFecha,'years') >= 18) {
+                                return resolve()
+                            }
                             let celular = searchContacto(pac, 'celular');
                             if (celular) {
                                 let pacienteVinculado = await buscaPacienteVinculado(pac, db2);
