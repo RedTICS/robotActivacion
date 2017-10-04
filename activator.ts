@@ -24,6 +24,7 @@
     let arrayPromesas = [];
     let coleccionPacientesApp = 'pacienteApp';
     let coleccionPacientes = 'paciente';
+    let coleccionCacheSend = 'sendMessageCache';
     let logger = new(winston.Logger)({
         transports: [
             new(winston.transports.Console)(),
@@ -33,21 +34,22 @@
         ]
     });
 
+    let now = new Date(Date.now() - 1000 * 60 * 60 * 24 * 75)
     let condicion = {
         createdAt: {
-            $gte: new Date("2017-09-26T00:00:00.000Z")
+            $gte: now
         }
     };
 
     mongoClient.connect(urlMpi, function (err, db) {
         mongoClient.connect(urlAndes, function (err, db2) {
 
-            db.collection(coleccionPacientes).find(condicion).toArray(function (error, pacientes: any) {
+            db.collection(coleccionPacientes).find(condicion).limit(100).toArray(function (error, pacientes: any) {
                 if (error) {
                     console.log('Error al conectarse a la base de datos ', error);
                 }
                 if (pacientes.length > 0) {
-
+                    console.log(pacientes);
                     pacientes.forEach(pac => {
                         let p = new Promise(async(resolve, reject) => {
 
@@ -56,63 +58,63 @@
                                 let pacienteVinculado = await buscaPacienteVinculado(pac, db2);
 
                                 if (pacienteVinculado) {
+                                    resolve();
 
-                                    let matcheo = await matchPacientes(pac, pacienteVinculado);
-                                    if (matcheo >= 0.95) {
+                                    //     let matcheo = await matchPacientes(pac, pacienteVinculado);
+                                    //     if (matcheo >= 0.95) {
 
-                                        if (pacienteVinculado.pacientes.length <= 0) {
+                                    //         if (pacienteVinculado.pacientes.length <= 0) {
 
-                                            logger.log('info', 'Envío sms a : ', pac.documento, pac.nombre, pac.apellido);
+                                    //             logger.log('info', 'Envío sms a : ', pac.documento, pac.nombre, pac.apellido);
 
-                                            let objAdd = {
-                                                id: pac._id,
-                                                relacion: 'principal',
-                                                addedAt: new Date()
+                                    //             let objAdd = {
+                                    //                 id: pac._id,
+                                    //                 relacion: 'principal',
+                                    //                 addedAt: new Date()
 
-                                            }
-                                            pacienteVinculado.pacientes.push(objAdd);
-                                            codeVerification.createUniqueCode(db2, coleccionPacientesApp)
-                                                .then(codigo => {
+                                    //             }
+                                    //             pacienteVinculado.pacientes.push(objAdd);
+                                    //             codeVerification.createUniqueCode(db2, coleccionPacientesApp)
+                                    //                 .then(codigo => {
 
-                                                    db2.collection(coleccionPacientesApp).updateOne({
-                                                            _id: pacienteVinculado._id
-                                                        }, {
+                                    //                     db2.collection(coleccionPacientesApp).updateOne({
+                                    //                             _id: pacienteVinculado._id
+                                    //                         }, {
 
-                                                            $set: {
-                                                                pacientes: pacienteVinculado.pacientes,
-                                                                envioCodigoCount: 1,
-                                                                codigoVerificacion: codigo,
-                                                                //telefono: celular,
-                                                                email: null,
-                                                                activacionApp: false,
-                                                                estadoCodigo: false,
-                                                                expirationTime: new Date(Date.now() + expirationOffset),
-                                                            }
+                                    //                             $set: {
+                                    //                                 pacientes: pacienteVinculado.pacientes,
+                                    //                                 envioCodigoCount: 1,
+                                    //                                 codigoVerificacion: codigo,
+                                    //                                 //telefono: celular,
+                                    //                                 email: null,
+                                    //                                 activacionApp: false,
+                                    //                                 estadoCodigo: false,
+                                    //                                 expirationTime: new Date(Date.now() + expirationOffset),
+                                    //                             }
 
-                                                        },
-                                                        function (err, rta) {
-                                                            if (err) {
-                                                                console.log('Error: ', err);
-                                                            } else {
-                                                                let paciente = pacienteVinculado;
-                                                                //paciente.telefono = celular;
-                                                                paciente.email = null;
-                                                                paciente.codigoVerificacion = codigo;
-                                                                enviarCodigoVerificacion(paciente);
-                                                            }
-                                                            resolve();
-                                                        })
-                                                })
+                                    //                         },
+                                    //                         function (err, rta) {
+                                    //                             if (err) {
+                                    //                                 console.log('Error: ', err);
+                                    //                             } else {
+                                    //                                 let paciente = pacienteVinculado;
+                                    //                                 //paciente.telefono = celular;
+                                    //                                 paciente.email = null;
+                                    //                                 paciente.codigoVerificacion = codigo;
+                                    //                                 enviarCodigoVerificacion(paciente, db2);
+                                    //                             }
+                                    //                             resolve();
+                                    //                         })
+                                    //                 })
 
 
-                                        } else {
-                                            resolve();
-                                        }
-                                    } else {
-                                        resolve();
-                                    }
+                                    //         } else {
+                                    //             resolve();
+                                    //         }
+                                    //     } else {
+                                    //         resolve();
+                                    //     }
                                 } else {
-                                    contador++;
 
                                     codeVerification.createUniqueCode(db2, coleccionPacientesApp)
                                         .then(codigo => {
@@ -141,12 +143,11 @@
                                             db2.collection(coleccionPacientesApp).insertOne(dataPacienteApp, function (err, user) {
                                                 if (err) {
                                                     console.log('error', err);
-
+                                                    resolve();
                                                 } else {
-                                                    // console.log('Paciene por aca: ',dataPacienteApp);
-                                                    enviarCodigoVerificacion(dataPacienteApp);
+                                                    enviarCodigoVerificacion(dataPacienteApp, db2, resolve);
                                                 }
-                                                resolve();
+                                                
                                             });
                                         });
                                 }
@@ -234,8 +235,10 @@
         })
     };
 
-    function enviarCodigoVerificacion(user) {
-        let mensajeGenerico = 'Ministerio de Salud :: ANDES :: Actualice la APP desde https://goo.gl/KMPzne y regístrese con este código de activación : ' + user.codigoVerificacion; 
+    function enviarCodigoVerificacion(user, db, resolve) {
+        // Guarda el mensaje para dejarlo pendiente de envío en una collection temporal.
+
+        let mensajeGenerico = 'Ministerio de Salud :: ANDES :: Actualice la APP desde https://goo.gl/KMPzne y regístrese con este código de activación : ' + user.codigoVerificacion;
         let mailOptions: any = {
             from: configPrivate.enviarMail.host,
             to: user.email,
@@ -248,17 +251,43 @@
             telefono: user.telefono,
             mensaje: mensajeGenerico
         };
-        if (user.email) {
-            sendMail(mailOptions);
+
+        let userdata = {
+            message: mensajeGenerico,
+            subject: 'Ministerio de Salud :: ANDES :: Código de activación',
+            phone: user.telefono,
+            email: user.email,
+            from: 'Robot de activación automático',
+            status: 'pending',
+            createdAt: new Date(),
+            tries: 0
         }
-        
-        sendSms(smsOptions, function (res) {
-            
-            if (res === '0') {
-                logger.log('info', 'El SMS se envío correctamente', user.documento);
-            } else {
-                logger.log('info', 'El SMS ha fallado', user.documento)
-                logger.log('info', '' )
+
+        save(userdata, db, resolve);
+    }
+
+    function save(usuario, db, resolve) {
+
+        db.collection(coleccionCacheSend).insertOne(usuario, function (err) {
+            if (err) {
+                console.log('Error: ', err);
             }
+            resolve();
         });
     }
+
+
+
+    // if (user.email) {
+    //     sendMail(mailOptions);
+    // }
+
+    // sendSms(smsOptions, function (res) {
+
+    //     if (res === '0') {
+    //         logger.log('info', 'El SMS se envío correctamente', user.documento);
+    //     } else {
+    //         logger.log('info', 'El SMS ha fallado', user.documento)
+    //         logger.log('info', '' )
+    //     }
+    // });
