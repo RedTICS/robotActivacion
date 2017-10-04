@@ -35,8 +35,8 @@
         ]
     });
     
-    let now = moment().subtract(1,'days').toDate();
-    
+    let now = moment().subtract(20,'days').toDate();
+    console.log(now);
     let condicion = {
         createdAt: {
             $gte: now
@@ -55,7 +55,7 @@
                         let p = new Promise(async(resolve, reject) => {
                             let crtlFecha = moment(pac.fechaNacimiento);
                             // No enviamos a menores de 18 años
-                            if (moment().diff(crtlFecha,'years') >= 18) {
+                            if (moment().diff(crtlFecha,'years') <= 18) {
                                 return resolve()
                             }
                             let celular = searchContacto(pac, 'celular');
