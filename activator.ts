@@ -35,8 +35,7 @@
         ]
     });
     
-    let now = moment().subtract(20,'days').toDate();
-    console.log(now);
+    let now = moment().subtract(2,'days').toDate();
     let condicion = {
         createdAt: {
             $gte: now
