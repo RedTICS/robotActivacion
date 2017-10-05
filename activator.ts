@@ -23,9 +23,9 @@
     let urlAndes = configPrivate.urlMongoAndes;
     let urlMpi = configPrivate.urlMongoMpi;
     let arrayPromesas = [];
-    let coleccionPacientesApp = 'pacienteAppTest';
+    let coleccionPacientesApp = 'pacienteApp';
     let coleccionPacientes = 'paciente';
-    let coleccionCacheSend = 'sendMessageCacheTest';
+    let coleccionCacheSend = 'sendMessageCache';
     let logger = new(winston.Logger)({
         transports: [
             new(winston.transports.Console)(),
@@ -35,7 +35,7 @@
         ]
     });
     
-    let now = moment().subtract(10,'days').toDate();
+    let now = moment().subtract(2,'days').toDate();
     let condicion = {
         createdAt: {
             $gte: now
