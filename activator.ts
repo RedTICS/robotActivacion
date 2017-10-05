@@ -23,9 +23,9 @@
     let urlAndes = configPrivate.urlMongoAndes;
     let urlMpi = configPrivate.urlMongoMpi;
     let arrayPromesas = [];
-    let coleccionPacientesApp = 'pacienteApp';
+    let coleccionPacientesApp = 'pacienteAppTest';
     let coleccionPacientes = 'paciente';
-    let coleccionCacheSend = 'sendMessageCache';
+    let coleccionCacheSend = 'sendMessageCacheTest';
     let logger = new(winston.Logger)({
         transports: [
             new(winston.transports.Console)(),
@@ -35,16 +35,16 @@
         ]
     });
     
-    let now = moment().subtract(2,'days').toDate();
+    let now = moment().subtract(10,'days').toDate();
     let condicion = {
         createdAt: {
             $gte: now
         }
     };
-
+    
     mongoClient.connect(urlMpi, function (err, db) {
         mongoClient.connect(urlAndes, function (err, db2) {
-
+            
             db.collection(coleccionPacientes).find(condicion).toArray(function (error, pacientes: any) {
                 if (error) {
                     console.log('Error al conectarse a la base de datos ', error);
@@ -119,11 +119,11 @@
                                     //         resolve();
                                     //     }
                                 } else {
-
                                     codeVerification.createUniqueCode(db2, coleccionPacientesApp)
                                         .then(codigo => {
                                             // Creamos el pacienteApp y lo insertamos con un codigo de verificación
                                             let dataPacienteApp: any = {
+                                                createdAt: new Date(Date.now()),
                                                 nombre: pac.nombre,
                                                 apellido: pac.apellido,
                                                 email: null,
