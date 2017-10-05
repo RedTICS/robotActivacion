@@ -169,6 +169,7 @@
                     Promise.all(arrayPromesas).then(resultado => {
                         db.close();
                         db2.close();
+                        console.log('Finalizo el proceso: ', Date.now());
                     })
 
 
